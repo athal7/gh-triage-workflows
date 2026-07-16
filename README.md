@@ -23,6 +23,9 @@ maintaining near-identical YAML in 13+ places.
   found, not a clean pass) or when Google Jules (`google-labs-jules[bot]`) opens a PR
   (task complete, decision pending). This is what lets `athal7` rely on GitHub's native
   "review requested" notification bucket instead of watching every bot action.
+- **`dependabot-automerge.yml`** — a `workflow_call` reusable workflow that auto-merges
+  Dependabot PRs that are minor or patch version bumps once required CI checks pass;
+  major bumps are left open for manual review.
 
 ## Using this from another repo
 
@@ -56,6 +59,11 @@ jobs:
   review-bridge:
     if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_target'
     uses: athal7/gh-triage-workflows/.github/workflows/review-bridge.yml@main
+    secrets: inherit
+
+  dependabot-automerge:
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]'
+    uses: athal7/gh-triage-workflows/.github/workflows/dependabot-automerge.yml@main
     secrets: inherit
 ```
 
