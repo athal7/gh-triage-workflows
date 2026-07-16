@@ -25,7 +25,12 @@ maintaining near-identical YAML in 13+ places.
   "review requested" notification bucket instead of watching every bot action.
 - **`dependabot-automerge.yml`** — a `workflow_call` reusable workflow that auto-merges
   Dependabot PRs that are minor or patch version bumps once required CI checks pass;
-  major bumps are left open for manual review.
+  major bumps are left open for manual review. **Note:** GitHub's auto-merge feature
+  requires at least one required status check configured in branch protection — repos
+  without any CI workflow (e.g. `kb`, `scorebook`, `opencode-permission-audit`,
+  `gh-triage-workflows` itself) cannot use auto-merge. On those repos the merge step
+  now logs a warning and leaves the PR open for manual merge instead of failing the
+  workflow run.
 
 ## Using this from another repo
 
