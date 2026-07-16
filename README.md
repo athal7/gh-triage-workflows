@@ -31,18 +31,6 @@ maintaining near-identical YAML in 13+ places.
   `gh-triage-workflows` itself) cannot use auto-merge. On those repos the merge step
   now logs a warning and leaves the PR open for manual merge instead of failing the
   workflow run.
-- **`jules-assign.yml`** — a `workflow_call` reusable workflow that automatically labels
-  eligible open issues with `jules`, triggering Google Jules (`google-labs-jules[bot]`)
-  to comment, plan, write code, and open a PR. An issue is eligible only if: it is not
-  already labeled `jules`, does not have a `no-jules` opt-out label (apply `no-jules`
-  manually to permanently exclude an issue), has no open blocker (`blocked on #N` /
-  `blocked by #N` in the body where issue #N is still open), and has no already-linked
-  OPEN or MERGED PR (detected via GitHub's native closing-keyword PR↔issue link graph).
-  Runs on `issues` events (new/reopened issues get evaluated immediately) and on the
-  daily cron sweep — so an issue that was blocked today is automatically picked up once
-  its blocker closes, without requiring a new event on that specific issue. Human review
-  of Jules' resulting PRs happens via the existing `review-bridge` job, which requests
-  `athal7` as reviewer whenever Jules opens a PR.
 
 ## Using this from another repo
 
@@ -82,10 +70,6 @@ jobs:
     if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]'
     uses: athal7/gh-triage-workflows/.github/workflows/dependabot-automerge.yml@main
     secrets: inherit
-
-  jules-assign:
-    uses: athal7/gh-triage-workflows/.github/workflows/jules-assign.yml@main
-    secrets: inherit
 ```
 
 Callers pin to `@main` intentionally — this is a solo hobby fleet, auto-propagation
@@ -101,8 +85,6 @@ via the caller's `with:` block if a specific repo needs different thresholds.
 | `question` | label.yml (regex) | Title/body suggests a question |
 | `dependencies` | Dependabot/Renovate (self-labeled) | Automated dependency-bump PR |
 | `stale` | stale.yml | No activity past the configured threshold |
-| `jules` | jules-assign.yml | Auto-assigned: let Google Jules attempt a fix |
-| `no-jules` | manual | Opt-out: never auto-assign Jules to this issue |
 
 ## CodeRabbit prerequisite for review-bridge
 
