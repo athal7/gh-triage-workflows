@@ -18,6 +18,11 @@ maintaining near-identical YAML in 13+ places.
   in title + body. This is a first-pass sorter, not a classifier — expect occasional
   misfires on repos with unusual vocabulary; corrections stick (`sync-labels: 0`).
 - **`labeler.yml`** — the canonical regex-to-label map consumed by `label.yml`.
+- **`review-bridge.yml`** — a `workflow_call` reusable workflow that requests `athal7`
+  as a PR reviewer only when CodeRabbit submits a "Request changes" review (real issues
+  found, not a clean pass) or when Google Jules (`google-labs-jules[bot]`) opens a PR
+  (task complete, decision pending). This is what lets `athal7` rely on GitHub's native
+  "review requested" notification bucket instead of watching every bot action.
 
 ## Using this from another repo
 
@@ -31,6 +36,8 @@ on:
     types: [opened, edited, reopened]
   pull_request_target:
     types: [opened, edited, reopened]
+  pull_request_review:
+    types: [submitted]
   schedule:
     - cron: '30 1 * * *'
   workflow_dispatch:
@@ -44,6 +51,11 @@ jobs:
   stale:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     uses: athal7/gh-triage-workflows/.github/workflows/stale.yml@main
+    secrets: inherit
+
+  review-bridge:
+    if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_target'
+    uses: athal7/gh-triage-workflows/.github/workflows/review-bridge.yml@main
     secrets: inherit
 ```
 
@@ -60,3 +72,19 @@ via the caller's `with:` block if a specific repo needs different thresholds.
 | `question` | label.yml (regex) | Title/body suggests a question |
 | `dependencies` | Dependabot/Renovate (self-labeled) | Automated dependency-bump PR |
 | `stale` | stale.yml | No activity past the configured threshold |
+
+## CodeRabbit prerequisite for review-bridge
+
+For the CodeRabbit half of `review-bridge.yml` to fire (requesting `athal7` when
+CodeRabbit flags real issues), each consuming repo must have a `.coderabbit.yaml` at
+its root with at minimum:
+
+```yaml
+reviews:
+  request_changes_workflow: true
+```
+
+Without this, CodeRabbit will post comments but won't emit a formal "Request changes"
+review event, so the `pull_request_review` trigger won't fire. The Jules half
+(`pull_request_target` + `google-labs-jules[bot]` author check) works without any
+additional config.
