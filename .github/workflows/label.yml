@@ -1,0 +1,36 @@
+name: Label
+
+on:
+  workflow_call:
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Checkout canonical labeler config
+        uses: actions/checkout@v4
+        with:
+          repository: athal7/gh-triage-workflows
+          path: .triage-config
+
+      - name: Label by content (issues)
+        if: github.event_name == 'issues'
+        uses: github/issue-labeler@v3.3
+        with:
+          configuration-path: .triage-config/labeler.yml
+          include-title: 1
+          sync-labels: 0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Label by content (pull requests)
+        if: github.event_name == 'pull_request_target'
+        uses: github/issue-labeler@v3.3
+        with:
+          configuration-path: .triage-config/labeler.yml
+          include-title: 1
+          sync-labels: 0
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

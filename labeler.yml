@@ -1,0 +1,6 @@
+bug:
+  - '(?i)\b(bug|broken|crash(es|ed|ing)?|error|exception|traceback|stack ?trace|does ?n.?t work|doesn.?t work|fails?|failing|regression|unexpected|not working)\b'
+enhancement:
+  - '(?i)\b(feature request|feature|enhancement|add support|would be (nice|great)|it would be|please add|proposal|suggestion|idea)\b'
+question:
+  - '(?i)\b(how (do|can|to)|is it possible|question|clarif|not sure|what.?s the|why does|help( me)?)\b|\?'

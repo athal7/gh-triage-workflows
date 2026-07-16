@@ -1,0 +1,45 @@
+name: Stale
+
+on:
+  workflow_call:
+    inputs:
+      days-before-issue-stale:
+        type: number
+        default: 90
+      days-before-issue-close:
+        type: number
+        default: -1
+      days-before-pr-stale:
+        type: number
+        default: 45
+      days-before-pr-close:
+        type: number
+        default: 14
+      exempt-issue-labels:
+        type: string
+        default: 'enhancement,question,pinned,security'
+      exempt-pr-labels:
+        type: string
+        default: 'pinned,security,dependencies'
+      operations-per-run:
+        type: number
+        default: 100
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v10
+        with:
+          days-before-issue-stale: ${{ inputs.days-before-issue-stale }}
+          days-before-issue-close: ${{ inputs.days-before-issue-close }}
+          days-before-pr-stale: ${{ inputs.days-before-pr-stale }}
+          days-before-pr-close: ${{ inputs.days-before-pr-close }}
+          exempt-issue-labels: ${{ inputs.exempt-issue-labels }}
+          exempt-pr-labels: ${{ inputs.exempt-pr-labels }}
+          operations-per-run: ${{ inputs.operations-per-run }}
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
