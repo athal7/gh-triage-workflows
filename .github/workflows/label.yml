@@ -19,7 +19,7 @@ jobs:
 
       - name: Label by content (issues)
         if: github.event_name == 'issues'
-        uses: github/issue-labeler@v3.3
+        uses: github/issue-labeler@v3.4
         with:
           configuration-path: .triage-config/labeler.yml
           include-title: 1
@@ -28,7 +28,7 @@ jobs:
 
       - name: Label by content (pull requests)
         if: github.event_name == 'pull_request_target'
-        uses: github/issue-labeler@v3.3
+        uses: github/issue-labeler@v3.4
         with:
           configuration-path: .triage-config/labeler.yml
           include-title: 1
