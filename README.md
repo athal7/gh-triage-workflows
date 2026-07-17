@@ -33,13 +33,22 @@ maintaining near-identical YAML in 13+ places.
     assigns `athal7`. The `=== 4` exact-match fires once when the threshold is first
     crossed, not on every subsequent comment.
 - **`review-bridge.yml`** — a `workflow_call` reusable workflow that requests `athal7`
-  as a PR reviewer on two CodeRabbit signals:
+  as a PR reviewer on two CodeRabbit signals, and flags external contributor PRs for
+  CI approval:
   - **`coderabbit-approved`**: fires when CodeRabbit submits an `approved` review —
     clean pass, ready for human merge decision.
   - **`coderabbit-stalled`**: fires when CodeRabbit submits a `changes_requested`
     review; counts total CodeRabbit `CHANGES_REQUESTED` reviews on the PR and
     requests `athal7` only when that count reaches 3 or more (PR is stuck in a
     revision loop). The unconditional Jules-opened-PR trigger has been removed.
+  - **`external-contributor-flag`**: fires on `pull_request_target` opened events.
+    If the PR author's `author_association` is not one of `OWNER`, `COLLABORATOR`,
+    or `MEMBER` (i.e. `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, `CONTRIBUTOR`, or
+    `NONE`) and the author is not a bot, adds `athal7` as assignee and posts a
+    one-time comment explaining that GitHub requires manual CI approval for
+    first-time contributors (idempotent — skips the comment if already posted).
+    This surfaces externally-contributed PRs that would otherwise go silent because
+    CI never runs and no reviewer is notified.
 - **`dependabot-automerge.yml`** — a `workflow_call` reusable workflow that auto-merges
   Dependabot PRs for minor/patch bumps once required CI checks pass. When auto-merge
   cannot be enabled (repo has no required status checks) or the bump is a major version
