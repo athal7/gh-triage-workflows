@@ -12,7 +12,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout canonical labeler config
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: athal7/gh-triage-workflows
           path: .triage-config
