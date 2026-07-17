@@ -1,0 +1,47 @@
+name: Issue Escalation
+
+on:
+  workflow_call: {}
+
+permissions:
+  issues: write
+
+jobs:
+  jules-failed:
+    if: github.event_name == 'issue_comment' && github.event.comment.user.login == 'google-labs-jules[bot]' && contains(github.event.comment.body, 'failed to create a task')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              assignees: ['athal7']
+            });
+
+  stalled-discussion:
+    if: github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (issue.assignees && issue.assignees.length > 0) return; // already assigned, skip
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const humanComments = comments.filter(c => c.user.type !== 'Bot' && c.user.login !== 'athal7');
+            if (humanComments.length === 4) {
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                assignees: ['athal7']
+              });
+            }

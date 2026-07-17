@@ -18,19 +18,35 @@ maintaining near-identical YAML in 13+ places.
   in title + body. This is a first-pass sorter, not a classifier — expect occasional
   misfires on repos with unusual vocabulary; corrections stick (`sync-labels: 0`).
 - **`labeler.yml`** — the canonical regex-to-label map consumed by `label.yml`.
+- **`jules-assign.yml`** — a `workflow_call` reusable workflow that auto-applies a
+  `jules` label to newly opened/edited/reopened issues and runs a daily self-healing
+  sweep over all open issues. Skips issues that are already labeled `jules` or
+  `no-jules`, are blocked on an open issue (body contains `blocked on #N` / `blocked
+  by #N`), or have a linked open/merged PR (`closedByPullRequestsReferences`).
+  Permissions: `issues: write`, `pull-requests: read`.
+- **`issue-escalation.yml`** — a `workflow_call` reusable workflow that escalates
+  issues to `athal7` on two signals:
+  - **`jules-failed`**: fires when `google-labs-jules[bot]` posts an issue comment
+    containing `"failed to create a task"` — immediately assigns `athal7`.
+  - **`stalled-discussion`**: fires on every `issue_comment` created event; if the
+    issue has no assignees and exactly 4 non-bot, non-athal7 human comments exist,
+    assigns `athal7`. The `=== 4` exact-match fires once when the threshold is first
+    crossed, not on every subsequent comment.
 - **`review-bridge.yml`** — a `workflow_call` reusable workflow that requests `athal7`
-  as a PR reviewer only when CodeRabbit submits a "Request changes" review (real issues
-  found, not a clean pass) or when Google Jules (`google-labs-jules[bot]`) opens a PR
-  (task complete, decision pending). This is what lets `athal7` rely on GitHub's native
-  "review requested" notification bucket instead of watching every bot action.
+  as a PR reviewer on two CodeRabbit signals:
+  - **`coderabbit-approved`**: fires when CodeRabbit submits an `approved` review —
+    clean pass, ready for human merge decision.
+  - **`coderabbit-stalled`**: fires when CodeRabbit submits a `changes_requested`
+    review; counts total CodeRabbit `CHANGES_REQUESTED` reviews on the PR and
+    requests `athal7` only when that count reaches 3 or more (PR is stuck in a
+    revision loop). The unconditional Jules-opened-PR trigger has been removed.
 - **`dependabot-automerge.yml`** — a `workflow_call` reusable workflow that auto-merges
-  Dependabot PRs that are minor or patch version bumps once required CI checks pass;
-  major bumps are left open for manual review. **Note:** GitHub's auto-merge feature
-  requires at least one required status check configured in branch protection — repos
-  without any CI workflow (e.g. `kb`, `scorebook`, `opencode-permission-audit`,
-  `gh-triage-workflows` itself) cannot use auto-merge. On those repos the merge step
-  now logs a warning and leaves the PR open for manual merge instead of failing the
-  workflow run.
+  Dependabot PRs for minor/patch bumps once required CI checks pass. When auto-merge
+  cannot be enabled (repo has no required status checks) or the bump is a major version
+  upgrade, the workflow requests `athal7` as a reviewer instead of silently leaving
+  the PR open. **Note:** GitHub's auto-merge feature requires at least one required
+  status check configured in branch protection — repos without any CI workflow cannot
+  use auto-merge.
 
 ## Using this from another repo
 
@@ -42,6 +58,8 @@ name: Triage
 on:
   issues:
     types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
   pull_request_target:
     types: [opened, edited, reopened]
   pull_request_review:
@@ -70,6 +88,16 @@ jobs:
     if: github.event_name == 'pull_request_target' && github.event.pull_request.user.login == 'dependabot[bot]'
     uses: athal7/gh-triage-workflows/.github/workflows/dependabot-automerge.yml@main
     secrets: inherit
+
+  jules-assign:
+    if: github.event_name == 'issues' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    uses: athal7/gh-triage-workflows/.github/workflows/jules-assign.yml@main
+    secrets: inherit
+
+  issue-escalation:
+    if: github.event_name == 'issue_comment'
+    uses: athal7/gh-triage-workflows/.github/workflows/issue-escalation.yml@main
+    secrets: inherit
 ```
 
 Callers pin to `@main` intentionally — this is a solo hobby fleet, auto-propagation
@@ -85,19 +113,19 @@ via the caller's `with:` block if a specific repo needs different thresholds.
 | `question` | label.yml (regex) | Title/body suggests a question |
 | `dependencies` | Dependabot/Renovate (self-labeled) | Automated dependency-bump PR |
 | `stale` | stale.yml | No activity past the configured threshold |
+| `jules` | jules-assign.yml | Auto-applied: let Google Jules attempt a fix |
+| `no-jules` | manual | Opt-out: skip this issue in jules-assign sweep |
 
 ## CodeRabbit prerequisite for review-bridge
 
-For the CodeRabbit half of `review-bridge.yml` to fire (requesting `athal7` when
-CodeRabbit flags real issues), each consuming repo must have a `.coderabbit.yaml` at
-its root with at minimum:
+For the CodeRabbit halves of `review-bridge.yml` to fire (requesting `athal7` when
+CodeRabbit approves or repeatedly flags issues), each consuming repo must have a
+`.coderabbit.yaml` at its root with at minimum:
 
 ```yaml
 reviews:
   request_changes_workflow: true
 ```
 
-Without this, CodeRabbit will post comments but won't emit a formal "Request changes"
-review event, so the `pull_request_review` trigger won't fire. The Jules half
-(`pull_request_target` + `google-labs-jules[bot]` author check) works without any
-additional config.
+Without this, CodeRabbit will post comments but won't emit formal review events, so
+the `pull_request_review` trigger won't fire.
