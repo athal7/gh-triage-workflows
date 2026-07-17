@@ -59,3 +59,46 @@ jobs:
                 assignees: ['athal7']
               });
             }
+
+  external-contributor-flag:
+    if: github.event_name == 'pull_request_target' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      issues: write
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const association = context.payload.pull_request.author_association;
+            const userType = context.payload.pull_request.user.type;
+            const trustedAssociations = ['OWNER', 'COLLABORATOR', 'MEMBER'];
+
+            if (trustedAssociations.includes(association) || userType === 'Bot') {
+              return;
+            }
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: ['athal7']
+            });
+
+            const flagComment = "Heads up — this PR's CI has never run. GitHub requires manual approval for a first-time contributor's workflow runs before their code can execute with repo access (Settings → Actions → General → 'Fork pull request workflows'). If you've reviewed this PR and are comfortable running its CI, go to the repo's Actions tab and click 'Approve and run' on the pending workflow run for this PR. This only needs to be done once per contributor — future PRs from the same author will run automatically.";
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+            const alreadyPosted = comments.some(c => c.body.includes("this PR's CI has never run"));
+            if (!alreadyPosted) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: flagComment
+              });
+            }
