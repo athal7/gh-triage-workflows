@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - uses: actions/github-script@v7
         with:
@@ -19,12 +20,19 @@ jobs:
               pull_number: context.payload.pull_request.number,
               reviewers: ['athal7']
             });
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: ['athal7']
+            });
 
   coderabbit-stalled:
     if: github.event_name == 'pull_request_review' && github.event.review.user.login == 'coderabbitai[bot]' && github.event.review.state == 'changes_requested'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - uses: actions/github-script@v7
         with:
@@ -35,13 +43,19 @@ jobs:
               pull_number: context.payload.pull_request.number,
               per_page: 100
             });
-            // NOTE: REST API returns review.state in UPPERCASE ('APPROVED', 'CHANGES_REQUESTED'), unlike the webhook payload which is lowercase.
-            const crCount = reviews.filter(r => r.user.login === 'coderabbitai[bot]' && r.state === 'CHANGES_REQUESTED').length;
+            // NOTE: REST API returns review.state in UPPERCASE ('APPROVED', 'CHANGES_REQUESTED', 'COMMENTED'), unlike the webhook payload which is lowercase.
+            const crCount = reviews.filter(r => r.user.login === 'coderabbitai[bot]' && (r.state === 'CHANGES_REQUESTED' || r.state === 'COMMENTED')).length;
             if (crCount >= 3) {
               await github.rest.pulls.requestReviewers({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: context.payload.pull_request.number,
                 reviewers: ['athal7']
+              });
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                assignees: ['athal7']
               });
             }
