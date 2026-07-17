@@ -10,6 +10,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+      issues: write
     steps:
       - name: Dependabot metadata
         id: metadata
@@ -28,7 +29,7 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Request review on auto-merge failure (patch/minor)
+      - name: Request review and assign on auto-merge failure (patch/minor)
         if: steps.merge.outputs.auto_merge_failed == 'true'
         uses: actions/github-script@v7
         with:
@@ -39,7 +40,34 @@ jobs:
               pull_number: context.payload.pull_request.number,
               reviewers: ['athal7']
             });
-      - name: Request review for major version bumps
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: ['athal7']
+            });
+      - name: Post Jules comment on auto-merge failure (patch/minor)
+        if: steps.merge.outputs.auto_merge_failed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const julesComment = "@Jules this dependency bump couldn't auto-merge (major version change, or no CI to verify against) — can you check the changelog/release notes for breaking changes and update any affected code if needed?";
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+            const alreadyPosted = comments.some(c => c.body.includes(julesComment));
+            if (!alreadyPosted) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: julesComment
+              });
+            }
+      - name: Request review and assign for major version bumps
         if: steps.metadata.outputs.update-type == 'version-update:semver-major'
         uses: actions/github-script@v7
         with:
@@ -50,3 +78,30 @@ jobs:
               pull_number: context.payload.pull_request.number,
               reviewers: ['athal7']
             });
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              assignees: ['athal7']
+            });
+      - name: Post Jules comment for major version bumps
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const julesComment = "@Jules this dependency bump couldn't auto-merge (major version change, or no CI to verify against) — can you check the changelog/release notes for breaking changes and update any affected code if needed?";
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+            const alreadyPosted = comments.some(c => c.body.includes(julesComment));
+            if (!alreadyPosted) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: julesComment
+              });
+            }
