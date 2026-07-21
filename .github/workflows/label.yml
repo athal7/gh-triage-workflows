@@ -24,6 +24,7 @@ jobs:
           configuration-path: .triage-config/labeler.yml
           include-title: 1
           sync-labels: 0
+          enable-versioned-regex: 0
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Label by content (pull requests)
@@ -33,4 +34,5 @@ jobs:
           configuration-path: .triage-config/labeler.yml
           include-title: 1
           sync-labels: 0
+          enable-versioned-regex: 0
           repo-token: ${{ secrets.GITHUB_TOKEN }}
